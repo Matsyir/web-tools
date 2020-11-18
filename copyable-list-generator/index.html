@@ -1,0 +1,52 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copyable list generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+  </head>
+<body>
+    <div class="container">
+        <h4 class="text-center">Enter your list here with each entry on a seperate line (blank/empty lines are ignored)</h4>
+        <textarea id="listInput" rows="20" cols="20" class="form-control"></textarea>
+        <br>
+        <input type="button" id="generate" value="Generate Copyable List" class="btn btn-primary">
+        <br/><br/>
+        <ul id="copyList" class="list-group">
+        </ul>
+    </div>
+    <script>
+        function copyToClipboard(textToCopy, onSuccess=null, onError=null) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                    if (typeof onSuccess == "function") { // success callback
+                        onSuccess(textToCopy);
+                    }
+            }).catch(err => {
+                if (typeof onError == "function") { // error callback
+                    onError(err);
+                }
+            })
+        }
+
+        $(function() {
+            $("#generate").click((e) => {
+                let listInput = $("#listInput").val();
+                if (listInput == null || listInput.length < 1) { return; }
+                listInput = listInput.split("\n").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+                if (listInput.length < 0) { return; }
+
+                let listInputHtml = "";
+                $("#copyList").html(listInput.map((entry,idx) => `<li class='list-group-item'><input type='button' class='copyEntry btn btn-primary' data-entry='${entry}' value='Copy'/>&nbsp;&nbsp;${idx+1}: ${entry}</li>`).join(""));
+            })
+
+            $("body").on('click', ".copyEntry", function(e) {
+                copyToClipboard($(this).attr('data-entry'),
+                    () => $(this).parent().css('background-color', "#007a0c"), // success
+                    () => $(this).parent().css('background-color', "#c90000") // error
+                );
+            });
+        });
+    </script>
+</body>
+</html>
