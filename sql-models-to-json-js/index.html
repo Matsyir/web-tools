@@ -1,0 +1,114 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Models To JSON & JS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+  </head>
+<body>
+    <div class="container">
+        Expected .sql format [WIP/BETA] (This is built with regex, so all kinds of differences could break it.
+        As long as the table & column names are encased in quotes, and each field is delimited by commas, it should be okay):
+        <br/><br/>
+        <pre>
+            CREATE TABLE "table_name" (
+                "id" int unsigned NOT NULL AUTO_INCREMENT,
+                "column_1a" varchar(255) NOT NULL,
+                "column_2b" varchar(255) NOT NULL,
+                "column_etc" varchar(255) NOT NULL,
+                PRIMARY KEY ("id")
+            );
+            
+            CREATE TABLE "table_name2" (
+                "id" int unsigned NOT NULL AUTO_INCREMENT,..
+        </pre>
+        <h4 class="text-center">Enter your .sql export here. No data/rows are required/parsed, only table definitions.</h4>
+        <textarea id="sqlInput" rows="10" cols="20" class="form-control text-monospace"></textarea>
+        <br/>
+        <input type="button" id="generate" value="Generate JSON & JS Models" class="btn btn-primary">
+        <br/><hr/>
+        <h5 class="text-center">JSON output:</h5>
+        <textarea id="jsonOutput" rows="4" cols="20" class="form-control text-monospace"></textarea>
+        <br/>
+        <input type="button" value="Copy JSON" class="btn btn-primary copyTextArea" data-id-to-copy="jsonOutput">
+        <hr/>
+        <h5 class="text-center">JavaScript helper class:</h5>
+        <textarea id="jsOutput" rows="4" cols="20" class="form-control text-monospace"></textarea>
+        <br/>
+        <input type="button" value="Copy JavaScript" class="btn btn-primary copyTextArea" data-id-to-copy="jsOutput">
+        <!-- web-tools footer: --><br/><hr/><h5 class="text-center"><a href="http://matsyir.github.io/web-tools/">&larr; Back to web-tools home</a></h5>
+    </div>
+    <script>
+        function copyToClipboard(textToCopy, onSuccess=null, onError=null) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                if (typeof onSuccess == "function") { // success callback
+                    onSuccess(textToCopy);
+                }
+            }).catch(err => {
+                if (typeof onError == "function") { // error callback
+                    onError(err);
+                }
+            })
+        }
+
+        function capitalize(str) {
+            if (typeof str !== 'string') { return 'PARSE_ERROR'; }
+            return str.charAt(0).toUpperCase() + str.slice(1)
+        }
+
+        function snakeToPascal(snakeCaseString) {
+            if (typeof snakeCaseString !== 'string') { return 'PARSE_ERROR'; }
+            if (!snakeCaseString.includes("_")) { return capitalize(snakeCaseString); }
+
+            return snakeCaseString.split("_").map(capitalize).join("");
+        }
+
+        $(function() { // on document ready:
+            $("#generate").click((e) => {
+                let sqlInput = $("#sqlInput").val();
+                if (sqlInput == null || sqlInput.length < 1) { return; }
+
+                let tableDefinitions = []; // will add tableDefs as { tableName: "str", tableColumns: ["str", "str",..] }
+
+                sqlInput.match(/CREATE TABLE ".*" \([\s\S]+?\);/g).forEach((tableMatch) => {
+                    let tableName = tableMatch.match(/CREATE TABLE "(?<tableName>.*?)"/).groups.tableName;
+
+                    let tableColumns = tableMatch.match(/\n\s+?".+?"[\s\S]+?,/g).map((m) =>
+                        m.match(/"(?<columnName>.+?)"/).groups.columnName
+                    );
+
+                    tableDefinitions.push({tableName, tableColumns});
+                });
+
+                if (tableDefinitions.length < 0) {
+                    alert("SQL export resulted in empty table definitions - error while parsing or invalid SQL.");
+                    return;
+                }
+
+                $("#jsonOutput").val(JSON.stringify(tableDefinitions, null, 2));
+
+                let ind = "    "; // indent: 4 spaces
+                let classDefinition = `class DatabaseModels {\n\n` +
+                    tableDefinitions.map((tableDef) => {
+                        return (`${ind}static create${snakeToPascal(tableDef.tableName)}(${tableDef.tableColumns.join("=null, ")}=null) {\n` +
+                            `${ind.repeat(2)}return {\n${ind.repeat(3)}` + 
+                            tableDef.tableColumns.join(`,\n${ind.repeat(3)}`) +
+                            `\n${ind.repeat(2)}};\n${ind}}\n`
+                        );
+                    }).join("\n") +
+                    `}`;
+
+                $("#jsOutput").val(classDefinition);
+            });
+
+            $(".copyTextArea").click(function(e) {
+                copyToClipboard($(`#${$(this).attr('data-id-to-copy')}`).val() //,
+                    // () => $(this).parent().css('background-color', "#007a0c"), // success
+                    // () => $(this).parent().css('background-color', "#c90000") // error
+                );
+            });
+        });
+    </script>
+</body>
+</html>
