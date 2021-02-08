@@ -8,28 +8,33 @@
   </head>
 <body>
     <div class="container">
-        Expected .sql format [WIP/BETA] (This is built with regex, so all kinds of differences could break it.
-        As long as the table & column names are encased in quotes, and each field is delimited by commas, it should be okay):
-        <br/><br/>
-        <pre>
-            CREATE TABLE "table_name" (
-                "id" int unsigned NOT NULL AUTO_INCREMENT,
-                "column_1a" varchar(255) NOT NULL,
-                "column_2b" varchar(255) NOT NULL,
-                "column_etc" varchar(255) NOT NULL,
-                PRIMARY KEY ("id")
-            );
-            
-            CREATE TABLE "table_name2" (
-                "id" int unsigned NOT NULL AUTO_INCREMENT,..
-        </pre>
+        <p class="text-center">
+            This is built with regex, so all kinds of differences could break it - beware.
+            If it looks similar to the below format, it will probably be okay.
+            The most critical rules are that the table name comes after a <span class="text-monospace">CREATE TABLE</span> statement,
+            the table name and column names are encased in double quotes, and there is one comma & newline separating each column definition.
+            If you need to modify your .sql, this tool likely isn't worth using. Feel free to fork.
+            <br/><h5 class="text-center">Expected/supported .sql format:</h5>
+            <pre>
+                CREATE TABLE "table_name" (
+                    "id" int unsigned NOT NULL AUTO_INCREMENT,
+                    "column_1a" varchar(255) NOT NULL,
+                    "column_2b" varchar(255) CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci' NULL,
+                    "column_etc" int(10) NOT NULL DEFAULT 0,
+                    PRIMARY KEY ("id")
+                );
+                
+                CREATE TABLE "table_name2" (
+                    "id" int unsigned NOT NULL AUTO_INCREMENT,..
+            </pre>
+        </p>
         <h4 class="text-center">Enter your .sql export here. No data/rows are required/parsed, only table definitions.</h4>
         <textarea id="sqlInput" rows="10" cols="20" class="form-control text-monospace"></textarea>
-        <br/>
         <div class="form-check">
             <input class="form-check-input" type="checkbox" value="" id="excludeId" checked>
-            <label class="form-check-label" for="excludeId">Exclude ID Columns?</label>
+            <label class="form-check-label" for="excludeId">Exclude columns named "id" (case-insensitive)</label>
         </div>
+        <br/>
         <input type="button" id="generate" value="Generate JSON & JS Models" class="btn btn-primary">
         <br/><hr/>
         <h5 class="text-center">JSON output:</h5>
@@ -41,7 +46,11 @@
         <textarea id="jsOutput" rows="4" cols="20" class="form-control text-monospace"></textarea>
         <br/>
         <input type="button" value="Copy JavaScript" class="btn btn-primary copyTextArea" data-id-to-copy="jsOutput">
-        <!-- web-tools footer: --><br/><hr/><h5 class="text-center"><a href="http://matsyir.github.io/web-tools/">&larr; Back to web-tools home</a></h5>
+        <!-- web-tools footer: -->
+        <br/><hr/><h5 class="text-center">
+            <a href="http://matsyir.github.io/web-tools/">&larr; Back to web-tools home</a>&nbsp;|&nbsp;
+            <a href="http://github.com/Matsyir/web-tools">GitHub Repo</a>
+        </h5><!-- end of web-tools footer: -->
     </div>
     <script>
         function copyToClipboard(textToCopy, onSuccess=null, onError=null) {
@@ -87,8 +96,9 @@
                     if (excludeId) {
                         tableColumns = tableColumns.filter((col) => col.toLowerCase() != "id");
                     }
-
-                    tableDefinitions.push({tableName, tableColumns});
+                    if (tableColumns.length > 0) {
+                        tableDefinitions.push({tableName, tableColumns});
+                    }
                 });
 
                 if (tableDefinitions.length < 0) {
@@ -99,7 +109,7 @@
                 $("#jsonOutput").val(JSON.stringify(tableDefinitions, null, 2));
 
                 let ind = "    "; // indent: 4 spaces
-                let classDefinition = `class DatabaseModels {\n\n` +
+                let classDefinitionStr = `class DatabaseModels {\n\n` +
                     tableDefinitions.map((tableDef) => {
                         return (`${ind}static create${snakeToPascal(tableDef.tableName)}(${tableDef.tableColumns.join("=null, ")}=null) {\n` +
                             `${ind.repeat(2)}return {\n${ind.repeat(3)}` + 
@@ -109,7 +119,7 @@
                     }).join("\n") +
                     `}`;
 
-                $("#jsOutput").val(classDefinition);
+                $("#jsOutput").val(classDefinitionStr);
             });
 
             $(".copyTextArea").click(function(e) {
